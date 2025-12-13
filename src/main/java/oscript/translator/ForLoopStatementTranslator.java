@@ -194,7 +194,7 @@ public class ForLoopStatementTranslator
     
     nlo.addNode(n.f8);        // EvaluationUnit
     if( n.f6.present() )
-      nlo.addNode(n.f6.node); // Expression2
+      nlo.addNode(new EvaluationUnit(new NodeChoice(new ExpressionBlock((Expression) n.f6.node)))); // Expression2
     
     Program loopBody = new Program( nlo, false );
     
