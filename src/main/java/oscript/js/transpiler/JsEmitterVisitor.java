@@ -69,10 +69,13 @@ import oscript.syntaxtree.UnaryExpression;
 import oscript.syntaxtree.VariableDeclaration;
 import oscript.syntaxtree.VariableDeclarationBlock;
 import oscript.syntaxtree.WhileLoopStatement;
+import oscript.syntaxtree.ThrowBlock;
+import oscript.syntaxtree.TryStatement;
 import oscript.translator.CollectionForLoopStatementTranslator;
 import oscript.translator.ForLoopStatementTranslator;
 import oscript.translator.FunctionDeclarationTranslator;
 import oscript.visitor.ObjectDepthFirst;
+import oscript.data.BasicScope;
 
 final class JsEmitterVisitor extends ObjectDepthFirst {
 
@@ -262,6 +265,44 @@ final class JsEmitterVisitor extends ObjectDepthFirst {
         return null;
     }
 
+    @Override
+    public Object visit(TryStatement n, Object argu) {
+        boolean hasCatch = n.f2.size() > 0 || n.f3.present();
+        if (hasCatch) {
+            out.line("try{");
+            out.indent();
+            n.f1.accept(this, argu);
+            out.dedent();
+            out.line("}catch(e){");
+            out.indent();
+            out.line("let _handled = false;");
+            out.line("if(!e || e.val === undefined){ throw e; }");
+            for (int i = 0; i < n.f2.size(); i++) {
+                emitTypedCatch((NodeSequence) n.f2.elementAt(i), argu);
+            }
+            if (n.f3.present()) {
+                emitDefaultCatch((NodeSequence) n.f3.node, argu);
+            }
+            out.line("if(!_handled){ throw e; }");
+            out.dedent();
+            out.line("}");
+        } else {
+            out.line("try{");
+            out.indent();
+            n.f1.accept(this, argu);
+            out.dedent();
+            out.line("}");
+        }
+        if (n.f4.present()) {
+            out.line("finally{");
+            out.indent();
+            ((EvaluationUnit) ((NodeSequence) n.f4.node).elementAt(1)).accept(this, argu);
+            out.dedent();
+            out.line("}");
+        }
+        return null;
+    }
+
     private void emitConditionalArm(String head, EvaluationUnit body, Object argu) {
         boolean isScopeBlock = body.f0.choice instanceof ScopeBlock;
         if (isScopeBlock) {
@@ -297,6 +338,13 @@ final class JsEmitterVisitor extends ObjectDepthFirst {
     @Override
     public Object visit(ContinueStatement n, Object argu) {
         out.line("continue;");
+        return null;
+    }
+
+    @Override
+    public Object visit(ThrowBlock n, Object argu) {
+        String expr = emitExpression(n.f1);
+        out.line("throw oscript.exceptions.PackagedScriptObjectException.makeExceptionWrapper2(" + expr + ");");
         return null;
     }
 
@@ -820,6 +868,45 @@ final class JsEmitterVisitor extends ObjectDepthFirst {
             return emitPostfix(((PrimaryPostfixWithTrailingFxnCallExpList) node).f0.choice, base);
         }
         return base;
+    }
+
+    private void emitTypedCatch(NodeSequence seq, Object argu) {
+        String typeExpr = emitExpression((Node) seq.elementAt(2));
+        String name = ((NodeToken) seq.elementAt(3)).tokenImage;
+        EvaluationUnit body = (EvaluationUnit) seq.elementAt(5);
+        emitCatchBody(name, typeExpr, body, argu);
+    }
+
+    private void emitDefaultCatch(NodeSequence seq, Object argu) {
+        String name = ((NodeToken) seq.elementAt(2)).tokenImage;
+        EvaluationUnit body = (EvaluationUnit) seq.elementAt(4);
+        emitCatchBody(name, null, body, argu);
+    }
+
+    private void emitCatchBody(String name, String typeExpr, EvaluationUnit body, Object argu) {
+        String condition = (typeExpr == null)
+                ? "!_handled"
+                : "(!_handled && " + castToBooleanSoft(bop("VAL_IOF", "e.val", typeExpr)) + ")";
+        out.line("if(" + condition + "){");
+        out.indent();
+        out.line("_handled = true;");
+        out.line("const _savedScope = scope;");
+        out.line("scope = new BasicScope(scope);");
+        out.line("const " + name + " = SCOPE_CM(scope, " + symbolId(name) + ", " + Reference.ATTR_PROTECTED + ");");
+        out.line(assign(name, "e.val") + ";");
+        declaredNames.add(name);
+        out.line("try{");
+        out.indent();
+        body.accept(this, argu);
+        out.dedent();
+        out.line("}finally{");
+        out.indent();
+        out.line("scope = _savedScope;");
+        out.dedent();
+        out.line("}");
+        declaredNames.remove(name);
+        out.dedent();
+        out.line("}");
     }
 
     private String emitArgs(NodeListInterface list) {
