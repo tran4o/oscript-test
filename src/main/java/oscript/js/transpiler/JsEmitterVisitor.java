@@ -149,6 +149,12 @@ final class JsEmitterVisitor extends ObjectDepthFirst {
 
     @Override
     public Object visit(oscript.syntaxtree.Expression n, Object argu) {
+        if (argu == null) {
+            String expr = (String) n.f0.accept(this, Boolean.TRUE);
+            out.line(expr + ";");
+            lastExpression = expr;
+            return null;
+        }
         return n.f0.accept(this, argu);
     }
 
