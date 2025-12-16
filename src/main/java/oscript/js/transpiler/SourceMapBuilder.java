@@ -61,7 +61,7 @@ final class SourceMapBuilder {
         int lastGenColumn = 0;
         int lastSourceLine = 0;
         int lastSourceColumn = 0;
-        int previousEncodedLine = -1;
+        boolean firstSegmentOnLine = true;
 
         for (int i = 0; i < mappings.size(); i++) {
             Mapping mapping = mappings.get(i);
@@ -69,8 +69,9 @@ final class SourceMapBuilder {
                 encoded.append(';');
                 lastGenLine++;
                 lastGenColumn = 0;
+                firstSegmentOnLine = true;
             }
-            if (mapping.generatedLine == previousEncodedLine) {
+            if (!firstSegmentOnLine) {
                 encoded.append(',');
             }
             encoded.append(encodeVlq(mapping.generatedColumn - lastGenColumn));
@@ -81,7 +82,7 @@ final class SourceMapBuilder {
             lastGenColumn = mapping.generatedColumn;
             lastSourceLine = mapping.sourceLine;
             lastSourceColumn = mapping.sourceColumn;
-            previousEncodedLine = mapping.generatedLine;
+            firstSegmentOnLine = false;
         }
 
         StringBuilder json = new StringBuilder();
