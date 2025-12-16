@@ -252,25 +252,29 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 		Map<String, String> inexactNumberNameMap;
 	}
 
-	private final JsSourceBuilder out;
-	private final LinkedList<String> constants;
-	private final LinkedList<String> fncParamVars = new LinkedList();
+        private final JsSourceBuilder out;
+        private final LinkedList<String> constants;
+        private final LinkedList<String> fncParamVars = new LinkedList();
 
-	private final ConstantPool pool;
-	private final HashMap<String,String> declaredNames = new HashMap();
-	private final Set<String> fncParams; // optional
-	private String lastExpression = fUNDEF;
+        private final ConstantPool pool;
+        private final HashMap<String,String> declaredNames = new HashMap();
+        private final Set<String> fncParams; // optional
+        private String lastExpression = fUNDEF;
 
-	JsEmitterVisitor(Set<String> optionalNamesSkipVarToken) {
-		this(new JsSourceBuilder(), new LinkedList(), new ConstantPool(),optionalNamesSkipVarToken);
-	}
+        JsEmitterVisitor(Set<String> optionalNamesSkipVarToken, SourceMapBuilder sourceMapBuilder) {
+                this(new JsSourceBuilder(sourceMapBuilder), new LinkedList(), new ConstantPool(),optionalNamesSkipVarToken);
+        }
 
-	private JsEmitterVisitor(JsSourceBuilder out, LinkedList<String> constants, ConstantPool pool,Set<String> optionalNamesSkipVarToken) {
-		this.out = out;
-		this.constants = constants;
-		this.pool = pool;
-		this.fncParams = optionalNamesSkipVarToken;
-	}
+        private JsEmitterVisitor(JsSourceBuilder out, LinkedList<String> constants, ConstantPool pool,Set<String> optionalNamesSkipVarToken) {
+                this.out = out;
+                this.constants = constants;
+                this.pool = pool;
+                this.fncParams = optionalNamesSkipVarToken;
+        }
+
+        private void map(Object node) {
+                out.mark(SourceLocation.fromNode(node));
+        }
  
 	JsSourceBuilder emitProgram(Node file) {
 		int hpos;
@@ -300,14 +304,15 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 		return out;
 	}
 	
-	private String emitFunctionExpression(FunctionPrimaryPrefix n) {
-		boolean sHasVargs[] = new boolean[1];
-		LinkedHashMap<String,String> params = collectArgNames(n.f2,sHasVargs);
-		//------------------------------------------------------------------------------------------------
-		JsEmitterVisitor fn = new JsEmitterVisitor(new JsSourceBuilder(), constants, pool,params.keySet());
-		fn.declaredNames.putAll(declaredNames);
-		fn.declaredNames.putAll(params);
-		String pstr = String.join(",", params.values());
+        private String emitFunctionExpression(FunctionPrimaryPrefix n) {
+                boolean sHasVargs[] = new boolean[1];
+                LinkedHashMap<String,String> params = collectArgNames(n.f2,sHasVargs);
+                //------------------------------------------------------------------------------------------------
+                SourceMapBuilder childMap = out.getSourceMapBuilder() == null ? null : new SourceMapBuilder(out.getSourceMapBuilder().getSourceName());
+                JsEmitterVisitor fn = new JsEmitterVisitor(new JsSourceBuilder(childMap), constants, pool,params.keySet());
+                fn.declaredNames.putAll(declaredNames);
+                fn.declaredNames.putAll(params);
+                String pstr = String.join(",", params.values());
 		JsSourceBuilder builder = fn.out;
 		builder.append(fFNCWRP+"("+sScope+","+(sHasVargs[0] ? -params.size():params.size())+",function("+sScope);
 		if (!pstr.isEmpty()) {
@@ -328,18 +333,21 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(ProgramFile n, Object argu) {
+                map(n);
 		n.f1.accept(this, argu);
 		return null;
 	}
 
 	@Override
 	public Object visit(Program n, Object argu) {
+                map(n);
 		n.f0.accept(this, argu);
 		return null;
 	}
 
 	@Override
 	public Object visit(oscript.syntaxtree.Expression n, Object argu) {
+                map(n);
 		if (argu == null) {
 			String expr = (String) n.f0.accept(this, Boolean.TRUE);
 			out.line(expr + ";");
@@ -351,6 +359,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(NodeList n, Object argu) {
+                map(n);
 		for (Enumeration e = n.elements(); e.hasMoreElements();) {
 			((Node) e.nextElement()).accept(this, argu);
 		}
@@ -359,6 +368,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(NodeListOptional n, Object argu) {
+                map(n);
 		if (n.present()) {
 			for (Enumeration e = n.elements(); e.hasMoreElements();) {
 				((Node) e.nextElement()).accept(this, argu);
@@ -369,17 +379,20 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(EvaluationUnit n, Object argu) {
+                map(n);
 		n.f0.accept(this, argu);
 		return null;
 	}
 
 	@Override
 	public Object visit(FunctionDeclaration n, Object argu) {
+                map(n);
 		return FunctionDeclarationTranslator.translate(n).accept(this, argu);
 	}
 
 	@Override
 	public Object visit(ScopeBlock n, Object argu) {
+                map(n);
 		out.line("{");
 		out.indent();
 		n.f1.accept(this, argu);
@@ -390,27 +403,32 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(VariableDeclarationBlock n, Object argu) {
+                map(n);
 		n.f0.accept(this, argu);
 		return null;
 	}
 
 	@Override
 	public Object visit(PreLoopStatement n, Object argu) {
+                map(n);
 		return n.f0.accept(this, argu);
 	}
 
 	@Override
 	public Object visit(ForLoopStatement n, Object argu) {
+                map(n);
 		return ForLoopStatementTranslator.translate(n).accept(this, argu);
 	}
 
 	@Override
 	public Object visit(CollectionForLoopStatement n, Object argu) {
+                map(n);
 		return CollectionForLoopStatementTranslator.translate(n).accept(this, argu);
 	}
 	
 	 @Override
     public Object visit(TryStatement n, Object argu) {
+                map(n);
 		// SKIP n.f2.size() > 0 : TYPED CATCH NOT  SUPPORTED!
         boolean hasCatch = /*n.f2.size() > 0 || */n.f3.present();
         if (hasCatch) {
@@ -444,6 +462,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
     @Override
     public Object visit(ThrowBlock n, Object argu) {
+                map(n);
         String expr = emitExpression(n.f1);
         out.line(fTHROW+"(" + expr + ");");
         return null;
@@ -488,6 +507,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(IdentifierPrimaryPrefix n, Object argu) {
+                map(n);
 		String name = n.f0.tokenImage;
 		String ename = declaredNames.get(name);
 		if (ename == null && fncParams != null && fncParams.contains(name)) {
@@ -506,6 +526,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(VariableDeclaration n, Object argu) {
+                map(n);
 		int permissions = getPermissions(n.f0, Reference.ATTR_PROTECTED);
 		String name = n.f2.tokenImage;
 		String ename = encodeName(name);
@@ -555,6 +576,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(ExpressionBlock n, Object argu) {
+                map(n);
 		String expr = emitExpression(n.f0);
 		out.line(expr + ";");
 		lastExpression = expr;
@@ -563,6 +585,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(ReturnStatement n, Object argu) {
+                map(n);
 		if (n.f1.present()) {
 			String expr = emitExpression((Node) n.f1.node);
 			out.line("return " + expr + ";");
@@ -574,6 +597,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(ConditionalStatement n, Object argu) {
+                map(n);
 		String cond = emitExpression(n.f2);
 		emitConditionalArm("if(" + castToBooleanSoft(cond) + ")", n.f4, argu);
 		if (n.f5.present()) {
@@ -600,6 +624,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(WhileLoopStatement n, Object argu) {
+                map(n);
 		String cond = emitExpression(n.f2);
 		out.line("while(" + castToBooleanSoft(cond) + "){");
 		out.indent();
@@ -611,12 +636,14 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(BreakStatement n, Object argu) {
+                map(n);
 		out.line("break;");
 		return null;
 	}
 
 	@Override
 	public Object visit(ContinueStatement n, Object argu) {
+                map(n);
 		out.line("continue;");
 		return null;
 	}
@@ -632,6 +659,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(AssignmentExpression n, Object argu) {
+                map(n);
 		if (n.f1.size() == 0)
 			return emitExpression(n.f0);
 		int last = n.f1.size() - 1;
@@ -680,6 +708,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(ShiftExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -705,6 +734,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 	
 	@Override
 	public Object visit(ConditionalExpression n, Object argu) {
+                map(n);
 		String left = emitExpression(n.f0);
 		if (n.f1.present()) {
 			NodeListInterface list = (NodeListInterface) n.f1.node;
@@ -717,6 +747,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(LogicalOrExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -728,6 +759,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(LogicalAndExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -739,6 +771,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(BitwiseOrExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -750,6 +783,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(BitwiseXorExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -761,6 +795,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(BitwiseAndExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -772,6 +807,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(EqualityExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -794,6 +830,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(RelationalExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -825,6 +862,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 	
 	@Override
 	public Object visit(AdditiveExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -847,6 +885,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(MultiplicativeExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			NodeSequence seq = (NodeSequence) n.f1.elementAt(i);
@@ -872,6 +911,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(UnaryExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f1);
 		if (n.f0.present()) {
 			NodeToken op = (NodeToken) ((NodeChoice) n.f0.node).choice;
@@ -903,6 +943,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(PostfixExpression n, Object argu) {
+                map(n);
 		String val = emitExpression(n.f0);
 		if (n.f1.present()) {
 			NodeToken op = (NodeToken) ((NodeChoice) n.f1.node).choice;
@@ -920,11 +961,13 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(TypeExpression n, Object argu) {
+                map(n);
 		return emitExpression(n.f0);
 	}
 
 	@Override
 	public Object visit(PrimaryExpression n, Object argu) {
+                map(n);
 		String expr = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			expr = emitPostfix((Node) n.f1.elementAt(i), expr);
@@ -934,6 +977,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(PrimaryExpressionNotFunction n, Object argu) {
+                map(n);
 		String expr = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			expr = emitPostfix((Node) n.f1.elementAt(i), expr);
@@ -943,6 +987,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(PrimaryExpressionWithTrailingFxnCallExpList n, Object argu) {
+                map(n);
 		String expr = emitExpression(n.f0);
 		for (int i = 0; i < n.f1.size(); i++) {
 			expr = emitPostfix((Node) n.f1.elementAt(i), expr);
@@ -952,16 +997,19 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(PrimaryPrefix n, Object argu) {
+                map(n);
 		return emitExpression(n.f0);
 	}
 
 	@Override
 	public Object visit(PrimaryPrefixNotFunction n, Object argu) {
+                map(n);
 		return emitExpression(n.f0);
 	}
 
 	@Override
 	public Object visit(FunctionPrimaryPrefix n, Object argu) {
+                map(n);
 		return emitFunctionExpression(n);
 	}
 
@@ -1001,26 +1049,31 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(ParenPrimaryPrefix n, Object argu) {
+                map(n);
 		return "(" + emitExpression(n.f1) + ")";
 	}
 
 	@Override
 	public Object visit(ThisPrimaryPrefix n, Object argu) {
+                map(n);
 		return fTHS+"("+sScope+")";
 	}
 
 	@Override
 	public Object visit(SuperPrimaryPrefix n, Object argu) {
+                map(n);
 		return fSUPR+"("+sScope+")";
 	}
 
 	@Override
 	public Object visit(CalleePrimaryPrefix n, Object argu) {
+                map(n);
 		return fCALE+"("+sScope+")";
 	}
 
 	@Override
 	public Object visit(ArrayDeclarationPrimaryPrefix n, Object argu) {
+                map(n);
 		String contents = "";
 		if (n.f1.present()) {
 			contents = emitInitializer((FunctionCallExpressionListBody) n.f1.node);
@@ -1030,11 +1083,13 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(Literal n, Object argu) {
+                map(n);
 		return emitLiteral((NodeToken) n.f0.choice);
 	}
 
 	@Override
 	public Object visit(AllocationExpression n, Object argu) {
+                map(n);
 		String callee = emitExpression(n.f1);
 		String args = emitArgs(n.f2);
 		return emitInvocation(callee, args, true);
@@ -1042,6 +1097,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(CastExpression n, Object argu) {
+                map(n);
 		String target = emitExpression(n.f1);
 		String expr = emitExpression(n.f3);
 		return bop(fCAST, target, expr);
@@ -1073,16 +1129,19 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 
 	@Override
 	public Object visit(PrimaryPostfix n, Object argu) {
+                map(n);
 		return emitPostfix(n.f0.choice, (String) argu);
 	}
 
 	@Override
 	public Object visit(PrimaryPostfixWithTrailingFxnCallExpList n, Object argu) {
+                map(n);
 		return emitPostfix(n.f0.choice, (String) argu);
 	}
 
 	@Override
 	public Object visit(FunctionCallExpressionList n, Object argu) {
+                map(n);
 		return emitArgs(n);
 	}
 

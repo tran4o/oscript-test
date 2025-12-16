@@ -3,24 +3,51 @@ package oscript.js.transpiler;
 /**
  * Utility for producing readable JavaScript with consistent indentation. The
  * emitter relies on this helper to keep formatting predictable without adding
- * dependencies on a separate templating engine.
+ * dependencies on a separate templating engine. The builder also tracks
+ * generated locations for source map emission.
  */
 final class JsSourceBuilder {
 
     private final StringBuilder out = new StringBuilder();
+    private final SourceMapBuilder sourceMap;
     private int indent = 0;
-    public String constdef="";
-    
+    private int line = 0;
+    private int column = 0;
+    public String constdef = "";
+
+    JsSourceBuilder() {
+        this(null);
+    }
+
+    JsSourceBuilder(SourceMapBuilder sourceMap) {
+        this.sourceMap = sourceMap;
+    }
+
     JsSourceBuilder append(String text) {
         out.append(text);
+        trackPosition(text);
+        return this;
+    }
+
+    JsSourceBuilder append(JsSourceBuilder other) {
+        int lineOffset = line;
+        int columnOffset = column;
+        out.append(other.out);
+        if ((sourceMap != null) && (other.sourceMap != null)) {
+            sourceMap.merge(other.sourceMap, lineOffset, columnOffset);
+        }
+        trackPosition(other.out);
         return this;
     }
 
     JsSourceBuilder newline() {
         out.append('\n');
+        line++;
+        column = 0;
         for (int i = 0; i < indent; i++) {
             out.append(' ');
             out.append(' ');
+            column += 2;
         }
         return this;
     }
@@ -51,6 +78,29 @@ final class JsSourceBuilder {
 
     void insert(int position, String text) {
         out.insert(position, text);
+    }
+
+    void mark(SourceLocation location) {
+        if ((location == null) || (sourceMap == null)) {
+            return;
+        }
+        sourceMap.addMapping(line, column, location);
+    }
+
+    SourceMapBuilder getSourceMapBuilder() {
+        return sourceMap;
+    }
+
+    private void trackPosition(CharSequence text) {
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '\n') {
+                line++;
+                column = 0;
+            } else {
+                column++;
+            }
+        }
     }
 
     @Override
