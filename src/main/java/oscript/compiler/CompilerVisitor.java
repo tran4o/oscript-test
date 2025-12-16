@@ -33,7 +33,6 @@ import oscript.translator.*;
 import org.apache.bcel.generic.*;
 import org.apache.bcel.Const;
 
-import java.util.Vector;
 import java.util.LinkedList;
 import java.util.Iterator;
 
@@ -192,7 +191,6 @@ public class CompilerVisitor implements oscript.visitor.Visitor, oscript.parser.
   public static boolean LINE_NUMBER_ENABLED = true; 
   /*=======================================================================*/
   private NodeToken         NodeToken_lastToken;
-  private Vector            NodeToken_lastSpecials;
   private int               NodeToken_lastBeginLine = -1;
   private InstructionHandle NodeToken_lastBranchTarget = null;
   
@@ -206,8 +204,8 @@ public class CompilerVisitor implements oscript.visitor.Visitor, oscript.parser.
   {
     NodeToken_lastToken = n;
     
-    if( n.specialTokens != null )
-      NodeToken_lastSpecials = n.specialTokens;
+    /*if( n.specialTokens != null )
+      NodeToken_lastSpecials = n.specialTokens;*/
     
     if(LINE_NUMBER_ENABLED) // XXX we should be able to enable/disable inserting this extra code at runtime
     {

@@ -9,7 +9,8 @@ final class JsSourceBuilder {
 
     private final StringBuilder out = new StringBuilder();
     private int indent = 0;
-
+    public String constdef="";
+    
     JsSourceBuilder append(String text) {
         out.append(text);
         return this;
@@ -25,7 +26,7 @@ final class JsSourceBuilder {
     }
 
     JsSourceBuilder line(String text) {
-        return newline().append(text);
+        return append(text).newline();
     }
 
     void indent() {

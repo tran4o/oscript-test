@@ -66,13 +66,13 @@ public final class FunctionData {
 	 * to the function are copied into an array that is assigned to the last arg to
 	 * the function.
 	 */
-	boolean varargs;
+	public boolean varargs;
 
 	/**
 	 * A hint from the parser about whether we need to create an extra level of
 	 * scope (ie. there are variables declared in that scope)
 	 */
-	boolean hasVarInScope;
+	public boolean hasVarInScope;
 
 	/**
 	 * A hint from the parser about whether scope storage can be allocated from the

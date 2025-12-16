@@ -141,13 +141,6 @@ public abstract class StackFrame
   protected final StackFrameBasicScope[] scopeLists;
   
   /**
-   * Pool of available, pre-allocated SFA's.  Whenever possible, allocating
-   * a SFA will re-use a SFA from the pool, to avoid dynamic memory allocation
-   * @see #allocateMemberTable(int)
-   */
-  private MemberTableImpl sfaPool = null;  // XXX should be shared between both StackFrame objects...
-  
-  /**
    * Pool of available, pre-allocated scope objects.  Whenever possible,
    * allocating a new scope will re-use one from the pool, in order to avoid
    * dynamic memory allocation.
@@ -386,18 +379,11 @@ public abstract class StackFrame
   }
   
   /**
-   * Allocate from the stack.
+   * Allocate @ 11.12.2025 NO STACK IMPL ! NORMAL MEMORY OBJ !
    */
   public final MemberTableImpl allocateMemberTable( int sz )
   {
-	MemberTableImpl sfa;
-    if( sfaPool != null ) {
-      sfa = sfaPool;
-      sfaPool = sfaPool.next;
-    }
-    else {
-      sfa = new MemberTableImpl();
-    }
+	MemberTableImpl sfa = new MemberTableImpl();
     sfa.reinit(sz);
     return sfa;
   }

@@ -50,7 +50,7 @@ public class InterpretedNodeEvaluator
    */
   InterpretedNodeEvaluator( String name, Node node )
   {
-    this.id   = name.endsWith(".os") ? -1 : Symbol.getSymbol(name).getId();
+    this.id   = name == null ? -1 : Symbol.getSymbol(name).getId();
     this.node = node;
   }
   

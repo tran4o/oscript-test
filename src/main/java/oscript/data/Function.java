@@ -40,7 +40,7 @@ import oscript.NodeEvaluator;
  * 
  * @author Rob Clark (rob@ti.com)
  */
-public class Function extends Type
+public class Function extends Type 
 {
   /**
    * The type object for an script function.
@@ -60,6 +60,7 @@ public class Function extends Type
     "callAsExtends"
   };
   public final static Value TYPE = BuiltinType.makeBuiltinType("oscript.data.Function");
+  public final static OArray array0 = new OArray(0); // immutable!
   
   /**
    * The scope this function is defined in.  This does not change throughout
@@ -325,9 +326,13 @@ public class Function extends Type
     {
       Scope scope;
       SymbolTable smit = fd.program.getSharedMemberIndexTable(NodeEvaluator.ALL);
-      if( args == null )
-        args = fd.hasFxnInScope ? new OArray(0) : sf.allocateMemberTable(0);
-      args = fd.mapArgs(args);  // even if args length is zero, to deal with var-args
+      // OPTIMIZED @ 13.12.25
+      /*if( args == null ) args = fd.hasFxnInScope ? array0 : sf.allocateMemberTable(0);
+      args = fd.mapArgs(args);  // even if args length is zero, to deal with var-args*/
+      if (args == null)
+    	  args = array0;
+      else
+    	  args = fd.mapArgs(args);
       if( !fd.hasFxnInScope )
         scope = sf.allocateFunctionScope( this, enclosingScope, smit, args );
       else
@@ -369,7 +374,7 @@ public class Function extends Type
     if( fd.exprList != null )
       superFxnArgs = (MemberTable)(sf.evalNode( fd.exprList, fxnScope ));
     else
-      superFxnArgs = new OArray(0);
+      superFxnArgs = array0;
     
     superFxn.callAsExtends( sf, newThisScope, superFxnArgs );
     
@@ -407,7 +412,7 @@ public class Function extends Type
     if( fd.exprList != null )
       superFxnArgs = (MemberTable)(sf.evalNode( fd.exprList, fxnScope ));
     else
-      superFxnArgs = new OArray(0);
+      superFxnArgs = array0;
     
     superFxn.callAsExtends( sf, scope, superFxnArgs );
     
@@ -513,6 +518,7 @@ public class Function extends Type
   public Scope getEnclosingScope() {
       return enclosingScope;
   }
+
 }
 
 
