@@ -8,8 +8,8 @@ package oscript.js.transpiler;
  */
 final class JsSourceBuilder {
 
-    private static final java.util.Map<String, SourceMapBuilder> inlineMappings =
-            java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+    private static final java.util.Map<String, java.util.Deque<SourceMapBuilder>> inlineMappings =
+            java.util.Collections.synchronizedMap(new java.util.HashMap<>());
 
     private final StringBuilder out = new StringBuilder();
     private final SourceMapBuilder sourceMap;
@@ -24,9 +24,10 @@ final class JsSourceBuilder {
     public String constdef = "";
 
     static void registerInlineMapping(String text, SourceMapBuilder map) {
-        if ((text != null) && (map != null)) {
-            inlineMappings.put(text, map);
+        if ((text == null) || (map == null)) {
+            return;
         }
+        inlineMappings.computeIfAbsent(text, k -> new java.util.ArrayDeque<>()).add(map);
     }
 
     JsSourceBuilder() {
@@ -38,7 +39,14 @@ final class JsSourceBuilder {
     }
 
     JsSourceBuilder append(String text) {
-        SourceMapBuilder inline = inlineMappings.remove(text);
+        SourceMapBuilder inline = null;
+        java.util.Deque<SourceMapBuilder> queue = inlineMappings.get(text);
+        if (queue != null) {
+            inline = queue.pollFirst();
+            if (queue.isEmpty()) {
+                inlineMappings.remove(text);
+            }
+        }
         if ((inline != null) && (sourceMap != null)) {
             sourceMap.merge(inline, line, column);
         }
