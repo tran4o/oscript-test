@@ -10,6 +10,7 @@ final class JsSourceBuilder {
 
     private final StringBuilder out = new StringBuilder();
     private final SourceMapBuilder sourceMap;
+    private SourceLocation pendingLocation;
     private int indent = 0;
     private int line = 0;
     private int column = 0;
@@ -24,12 +25,14 @@ final class JsSourceBuilder {
     }
 
     JsSourceBuilder append(String text) {
+        applyPendingLocation();
         out.append(text);
         trackPosition(text);
         return this;
     }
 
     JsSourceBuilder append(JsSourceBuilder other) {
+        applyPendingLocation();
         int lineOffset = line;
         int columnOffset = column;
         out.append(other.out);
@@ -41,6 +44,7 @@ final class JsSourceBuilder {
     }
 
     JsSourceBuilder newline() {
+        applyPendingLocation();
         out.append('\n');
         line++;
         column = 0;
@@ -84,7 +88,7 @@ final class JsSourceBuilder {
         if ((location == null) || (sourceMap == null)) {
             return;
         }
-        sourceMap.addMapping(line, column, location);
+        pendingLocation = location;
     }
 
     SourceMapBuilder getSourceMapBuilder() {
@@ -101,6 +105,14 @@ final class JsSourceBuilder {
                 column++;
             }
         }
+    }
+
+    private void applyPendingLocation() {
+        if (pendingLocation == null) {
+            return;
+        }
+        sourceMap.addMapping(line, column, pendingLocation);
+        pendingLocation = null;
     }
 
     @Override
