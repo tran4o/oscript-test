@@ -65,9 +65,11 @@ final class SourceMapBuilder {
 
         for (int i = 0; i < mappings.size(); i++) {
             Mapping mapping = mappings.get(i);
-            while (lastGenLine < mapping.generatedLine) {
-                encoded.append(';');
-                lastGenLine++;
+            if (lastGenLine < mapping.generatedLine) {
+                while (lastGenLine < mapping.generatedLine) {
+                    encoded.append(';');
+                    lastGenLine++;
+                }
                 lastGenColumn = 0;
                 firstSegmentOnLine = true;
             }
