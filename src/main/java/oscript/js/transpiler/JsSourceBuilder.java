@@ -11,6 +11,10 @@ final class JsSourceBuilder {
     private final StringBuilder out = new StringBuilder();
     private final SourceMapBuilder sourceMap;
     private final java.util.List<SourceLocation> pendingLocations = new java.util.ArrayList<>();
+    private SourceLocation lastLocation;
+    private int lastMappedLine = -1;
+    private int lastMappedColumn = -1;
+    private boolean mappingAddedForLine;
     private int indent = 0;
     private int line = 0;
     private int column = 0;
@@ -48,6 +52,8 @@ final class JsSourceBuilder {
         out.append('\n');
         line++;
         column = 0;
+        mappingAddedForLine = false;
+        carryForwardMapping();
         for (int i = 0; i < indent; i++) {
             out.append(' ');
             out.append(' ');
@@ -89,6 +95,7 @@ final class JsSourceBuilder {
             return;
         }
         pendingLocations.add(location);
+        lastLocation = location;
     }
 
     SourceMapBuilder getSourceMapBuilder() {
@@ -101,6 +108,7 @@ final class JsSourceBuilder {
             if (ch == '\n') {
                 line++;
                 column = 0;
+                mappingAddedForLine = false;
             } else {
                 column++;
             }
@@ -112,9 +120,29 @@ final class JsSourceBuilder {
             return;
         }
         for (SourceLocation location : pendingLocations) {
-            sourceMap.addMapping(line, column, location);
+            recordMapping(location);
         }
         pendingLocations.clear();
+    }
+
+    private void recordMapping(SourceLocation location) {
+        if ((sourceMap == null) || (location == null)) {
+            return;
+        }
+        if ((lastMappedLine == line) && (lastMappedColumn == column) && mappingAddedForLine) {
+            return;
+        }
+        sourceMap.addMapping(line, column, location);
+        lastMappedLine = line;
+        lastMappedColumn = column;
+        lastLocation = location;
+        mappingAddedForLine = true;
+    }
+
+    private void carryForwardMapping() {
+        if (!mappingAddedForLine && (lastLocation != null)) {
+            recordMapping(lastLocation);
+        }
     }
 
     @Override
