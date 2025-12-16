@@ -308,7 +308,7 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
                 boolean sHasVargs[] = new boolean[1];
                 LinkedHashMap<String,String> params = collectArgNames(n.f2,sHasVargs);
                 //------------------------------------------------------------------------------------------------
-                SourceMapBuilder childMap = out.getSourceMapBuilder() == null ? null : new SourceMapBuilder(out.getSourceMapBuilder().getSourceName());
+                SourceMapBuilder childMap = out.getSourceMapBuilder() == null ? null : new SourceMapBuilder(out.getSourceMapBuilder());
                 JsEmitterVisitor fn = new JsEmitterVisitor(new JsSourceBuilder(childMap), constants, pool,params.keySet());
                 fn.declaredNames.putAll(declaredNames);
                 fn.declaredNames.putAll(params);

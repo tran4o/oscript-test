@@ -13,15 +13,25 @@ import java.util.List;
  */
 final class SourceMapBuilder {
 
+    private final String generatedName;
     private final String sourceName;
     private final List<Mapping> mappings = new ArrayList<>();
 
-    SourceMapBuilder(String sourceName) {
+    SourceMapBuilder(String generatedName, String sourceName) {
+        this.generatedName = generatedName;
         this.sourceName = sourceName;
+    }
+
+    SourceMapBuilder(SourceMapBuilder other) {
+        this(other.generatedName, other.sourceName);
     }
 
     String getSourceName() {
         return sourceName;
+    }
+
+    String getGeneratedName() {
+        return generatedName;
     }
 
     void addMapping(int generatedLine, int generatedColumn, SourceLocation source) {
@@ -75,7 +85,7 @@ final class SourceMapBuilder {
         StringBuilder json = new StringBuilder();
         json.append('{')
                 .append("\"version\":3,")
-                .append("\"file\":\"").append(sourceName).append("\",")
+                .append("\"file\":\"").append(generatedName).append("\",")
                 .append("\"sources\":[\"").append(sourceName).append("\"],")
                 .append("\"sourcesContent\":[");
         if (sourcesContent != null) {

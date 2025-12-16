@@ -35,14 +35,16 @@ public final class JsTranspiler {
                 pset = new HashSet();
                 for (String s : OscriptHostImpl.compileSourceContextScriptParams.split(","))
                         pset.add(s);
-    		OscriptHostImpl.compileSourceContextScriptParams=null;
-    	}
-        SourceMapBuilder programSourceMap = new SourceMapBuilder(name);
+                OscriptHostImpl.compileSourceContextScriptParams=null;
+        }
+        String generatedName = "vsc://" + name + ".generated.js";
+        String sourceName = "vsc://" + name + ".source.os";
+        SourceMapBuilder programSourceMap = new SourceMapBuilder(generatedName, sourceName);
         JsEmitterVisitor emitter = new JsEmitterVisitor(pset, programSourceMap);
         JsSourceBuilder programBuilder = emitter.emitProgram(file);
 
-        JsSourceBuilder finalBuilder = new JsSourceBuilder(new SourceMapBuilder(name));
-        finalBuilder.line("//# sourceURL=" + name);
+        JsSourceBuilder finalBuilder = new JsSourceBuilder(new SourceMapBuilder(generatedName, sourceName));
+        finalBuilder.line("//# sourceURL=" + generatedName);
         finalBuilder.line("(function(){");
         finalBuilder.indent();
         if (!programBuilder.constdef.isEmpty()) {
