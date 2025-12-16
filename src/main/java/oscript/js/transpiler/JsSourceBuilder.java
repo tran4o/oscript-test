@@ -39,17 +39,7 @@ final class JsSourceBuilder {
     }
 
     JsSourceBuilder append(String text) {
-        SourceMapBuilder inline = null;
-        java.util.Deque<SourceMapBuilder> queue = inlineMappings.get(text);
-        if (queue != null) {
-            inline = queue.pollFirst();
-            if (queue.isEmpty()) {
-                inlineMappings.remove(text);
-            }
-        }
-        if ((inline != null) && (sourceMap != null)) {
-            sourceMap.merge(inline, line, column);
-        }
+        mergeInlineMappings(text);
         applyPendingLocation();
         out.append(text);
         trackPosition(text);
@@ -163,6 +153,52 @@ final class JsSourceBuilder {
     private void carryForwardMapping() {
         if (!mappingAddedForLine && (lastLocation != null)) {
             recordMapping(lastLocation);
+        }
+    }
+
+    private void mergeInlineMappings(String text) {
+        if ((sourceMap == null) || inlineMappings.isEmpty() || text.isEmpty()) {
+            return;
+        }
+
+        java.util.Iterator<java.util.Map.Entry<String, java.util.Deque<SourceMapBuilder>>> it =
+                inlineMappings.entrySet().iterator();
+
+        while (it.hasNext()) {
+            java.util.Map.Entry<String, java.util.Deque<SourceMapBuilder>> entry = it.next();
+            String needle = entry.getKey();
+            java.util.Deque<SourceMapBuilder> queue = entry.getValue();
+            int fromIndex = 0;
+
+            while ((queue != null) && !queue.isEmpty()) {
+                int match = text.indexOf(needle, fromIndex);
+                if (match < 0) {
+                    break;
+                }
+
+                SourceMapBuilder inline = queue.pollFirst();
+                if (queue.isEmpty()) {
+                    it.remove();
+                }
+
+                int localLine = 0;
+                int localColumn = 0;
+                for (int i = 0; i < match; i++) {
+                    char ch = text.charAt(i);
+                    if (ch == '\n') {
+                        localLine++;
+                        localColumn = 0;
+                    } else {
+                        localColumn++;
+                    }
+                }
+
+                int lineOffset = line + localLine;
+                int columnOffset = (localLine == 0) ? column + localColumn : localColumn;
+                sourceMap.merge(inline, lineOffset, columnOffset);
+
+                fromIndex = match + needle.length();
+            }
         }
     }
 
