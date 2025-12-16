@@ -10,7 +10,7 @@ final class JsSourceBuilder {
 
     private final StringBuilder out = new StringBuilder();
     private final SourceMapBuilder sourceMap;
-    private SourceLocation pendingLocation;
+    private final java.util.List<SourceLocation> pendingLocations = new java.util.ArrayList<>();
     private int indent = 0;
     private int line = 0;
     private int column = 0;
@@ -88,7 +88,7 @@ final class JsSourceBuilder {
         if ((location == null) || (sourceMap == null)) {
             return;
         }
-        pendingLocation = location;
+        pendingLocations.add(location);
     }
 
     SourceMapBuilder getSourceMapBuilder() {
@@ -108,11 +108,13 @@ final class JsSourceBuilder {
     }
 
     private void applyPendingLocation() {
-        if (pendingLocation == null) {
+        if (pendingLocations.isEmpty()) {
             return;
         }
-        sourceMap.addMapping(line, column, pendingLocation);
-        pendingLocation = null;
+        for (SourceLocation location : pendingLocations) {
+            sourceMap.addMapping(line, column, location);
+        }
+        pendingLocations.clear();
     }
 
     @Override
