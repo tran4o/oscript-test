@@ -80,6 +80,8 @@ final class SourceMapBuilder {
                 .append("\"sourcesContent\":[");
         if (sourcesContent != null) {
             json.append("\"").append(escapeForJson(sourcesContent)).append("\"");
+        } else {
+            json.append("null");
         }
         json.append("],")
                 .append("\"names\":[],")
