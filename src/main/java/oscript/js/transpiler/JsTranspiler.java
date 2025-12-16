@@ -15,12 +15,26 @@ public final class JsTranspiler {
     private JsTranspiler() {
     }
 
-    public static String transpile(String name,Node file) {
+    /**
+     * Transpile an ObjectScript syntax tree to JavaScript without embedding the
+     * original source text. Use {@link #transpile(String, String, Node)} when
+     * the source content is available so it can be inlined in the source map.
+     */
+    public static String transpile(String name, Node file) {
+        return transpile(name, null, file);
+    }
+
+    /**
+     * Transpile an ObjectScript syntax tree to JavaScript and optionally embed
+     * the original source code in the source map to keep virtual sources
+     * debuggable in browsers that cannot resolve the source URL.
+     */
+    public static String transpile(String name, String originalSource, Node file) {
         HashSet<String> pset = null;
-    	if (OscriptHostImpl.compileSourceContextScriptParams != null) {
-    		pset = new HashSet();
-    		for (String s : OscriptHostImpl.compileSourceContextScriptParams.split(","))
-    			pset.add(s);
+        if (OscriptHostImpl.compileSourceContextScriptParams != null) {
+                pset = new HashSet();
+                for (String s : OscriptHostImpl.compileSourceContextScriptParams.split(","))
+                        pset.add(s);
     		OscriptHostImpl.compileSourceContextScriptParams=null;
     	}
         SourceMapBuilder programSourceMap = new SourceMapBuilder(name);
@@ -41,7 +55,8 @@ public final class JsTranspiler {
         finalBuilder.dedent();
         finalBuilder.append("})()");
 
-        String encodedMap = finalBuilder.getSourceMapBuilder().build(null);
+        String encodedMap = finalBuilder.getSourceMapBuilder().build(
+                (originalSource != null) ? originalSource : "");
         if (!encodedMap.isEmpty()) {
                 finalBuilder.newline();
                 finalBuilder.append("//# sourceMappingURL=data:application/json;base64," + encodedMap);
