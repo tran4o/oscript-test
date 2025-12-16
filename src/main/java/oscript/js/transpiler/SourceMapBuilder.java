@@ -57,42 +57,35 @@ final class SourceMapBuilder {
                 .thenComparingInt(m -> m.generatedColumn));
 
         StringBuilder encoded = new StringBuilder();
-        int lastGenLine = 0;
+        List<String> pendingSegments = new ArrayList<>();
+        int currentGeneratedLine = 0;
         int lastGenColumn = 0;
         int lastSourceLine = 0;
         int lastSourceColumn = 0;
 
-        int index = 0;
-        while (index < mappings.size()) {
-            Mapping mapping = mappings.get(index);
-            while (lastGenLine < mapping.generatedLine) {
+        for (Mapping mapping : mappings) {
+            while (currentGeneratedLine < mapping.generatedLine) {
+                appendLine(encoded, pendingSegments);
                 encoded.append(';');
-                lastGenLine++;
+                pendingSegments.clear();
+                currentGeneratedLine++;
                 lastGenColumn = 0;
             }
 
-            boolean firstSegmentOnLine = true;
-            do {
-                if (!firstSegmentOnLine) {
-                    encoded.append(',');
-                }
-                encoded.append(encodeVlq(mapping.generatedColumn - lastGenColumn));
-                encoded.append(encodeVlq(0)); // single source only
-                encoded.append(encodeVlq(mapping.sourceLine - lastSourceLine));
-                encoded.append(encodeVlq(mapping.sourceColumn - lastSourceColumn));
+            StringBuilder segment = new StringBuilder();
+            segment.append(encodeVlq(mapping.generatedColumn - lastGenColumn));
+            segment.append(encodeVlq(0)); // single source only
+            segment.append(encodeVlq(mapping.sourceLine - lastSourceLine));
+            segment.append(encodeVlq(mapping.sourceColumn - lastSourceColumn));
 
-                lastGenColumn = mapping.generatedColumn;
-                lastSourceLine = mapping.sourceLine;
-                lastSourceColumn = mapping.sourceColumn;
-                firstSegmentOnLine = false;
+            pendingSegments.add(segment.toString());
 
-                index++;
-                if (index >= mappings.size()) {
-                    break;
-                }
-                mapping = mappings.get(index);
-            } while (mapping.generatedLine == lastGenLine);
+            lastGenColumn = mapping.generatedColumn;
+            lastSourceLine = mapping.sourceLine;
+            lastSourceColumn = mapping.sourceColumn;
         }
+
+        appendLine(encoded, pendingSegments);
 
         StringBuilder json = new StringBuilder();
         json.append('{')
@@ -129,6 +122,15 @@ final class SourceMapBuilder {
 
     private static int toVlqSigned(int value) {
         return (value < 0) ? ((-value) << 1) + 1 : (value << 1);
+    }
+
+    private static void appendLine(StringBuilder encoded, List<String> segments) {
+        for (int i = 0; i < segments.size(); i++) {
+            if (i > 0) {
+                encoded.append(',');
+            }
+            encoded.append(segments.get(i));
+        }
     }
 
     private static char toBase64(int value) {
