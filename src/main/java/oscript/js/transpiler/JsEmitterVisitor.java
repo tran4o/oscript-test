@@ -325,10 +325,12 @@ public final class JsEmitterVisitor extends ObjectDepthFirst {
 		n.f6.accept(fn, null);
 		if (!fncParamVars.isEmpty()) 
 			out.insert(hpos, "var "+String.join(",",fncParamVars)+";");
-		builder.dedent();
-		builder.append("})");
-		return builder.toString();
-	}
+                builder.dedent();
+                builder.append("})");
+                String generated = builder.toString();
+                JsSourceBuilder.registerInlineMapping(generated, childMap);
+                return generated;
+        }
 
 
 	@Override

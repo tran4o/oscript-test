@@ -8,6 +8,9 @@ package oscript.js.transpiler;
  */
 final class JsSourceBuilder {
 
+    private static final java.util.Map<String, SourceMapBuilder> inlineMappings =
+            java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+
     private final StringBuilder out = new StringBuilder();
     private final SourceMapBuilder sourceMap;
     private final java.util.List<SourceLocation> pendingLocations = new java.util.ArrayList<>();
@@ -20,6 +23,12 @@ final class JsSourceBuilder {
     private int column = 0;
     public String constdef = "";
 
+    static void registerInlineMapping(String text, SourceMapBuilder map) {
+        if ((text != null) && (map != null)) {
+            inlineMappings.put(text, map);
+        }
+    }
+
     JsSourceBuilder() {
         this(null);
     }
@@ -29,6 +38,10 @@ final class JsSourceBuilder {
     }
 
     JsSourceBuilder append(String text) {
+        SourceMapBuilder inline = inlineMappings.remove(text);
+        if ((inline != null) && (sourceMap != null)) {
+            sourceMap.merge(inline, line, column);
+        }
         applyPendingLocation();
         out.append(text);
         trackPosition(text);
