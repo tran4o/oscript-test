@@ -61,30 +61,37 @@ final class SourceMapBuilder {
         int lastGenColumn = 0;
         int lastSourceLine = 0;
         int lastSourceColumn = 0;
-        boolean firstSegmentOnLine = true;
 
-        for (int i = 0; i < mappings.size(); i++) {
-            Mapping mapping = mappings.get(i);
-            if (lastGenLine < mapping.generatedLine) {
-                while (lastGenLine < mapping.generatedLine) {
-                    encoded.append(';');
-                    lastGenLine++;
-                }
+        int index = 0;
+        while (index < mappings.size()) {
+            Mapping mapping = mappings.get(index);
+            while (lastGenLine < mapping.generatedLine) {
+                encoded.append(';');
+                lastGenLine++;
                 lastGenColumn = 0;
-                firstSegmentOnLine = true;
             }
-            if (!firstSegmentOnLine) {
-                encoded.append(',');
-            }
-            encoded.append(encodeVlq(mapping.generatedColumn - lastGenColumn));
-            encoded.append(encodeVlq(0)); // single source only
-            encoded.append(encodeVlq(mapping.sourceLine - lastSourceLine));
-            encoded.append(encodeVlq(mapping.sourceColumn - lastSourceColumn));
 
-            lastGenColumn = mapping.generatedColumn;
-            lastSourceLine = mapping.sourceLine;
-            lastSourceColumn = mapping.sourceColumn;
-            firstSegmentOnLine = false;
+            boolean firstSegmentOnLine = true;
+            do {
+                if (!firstSegmentOnLine) {
+                    encoded.append(',');
+                }
+                encoded.append(encodeVlq(mapping.generatedColumn - lastGenColumn));
+                encoded.append(encodeVlq(0)); // single source only
+                encoded.append(encodeVlq(mapping.sourceLine - lastSourceLine));
+                encoded.append(encodeVlq(mapping.sourceColumn - lastSourceColumn));
+
+                lastGenColumn = mapping.generatedColumn;
+                lastSourceLine = mapping.sourceLine;
+                lastSourceColumn = mapping.sourceColumn;
+                firstSegmentOnLine = false;
+
+                index++;
+                if (index >= mappings.size()) {
+                    break;
+                }
+                mapping = mappings.get(index);
+            } while (mapping.generatedLine == lastGenLine);
         }
 
         StringBuilder json = new StringBuilder();
