@@ -3,24 +3,72 @@ package oscript.js.transpiler;
 /**
  * Utility for producing readable JavaScript with consistent indentation. The
  * emitter relies on this helper to keep formatting predictable without adding
- * dependencies on a separate templating engine.
+ * dependencies on a separate templating engine. The builder also tracks
+ * generated locations for source map emission.
  */
 final class JsSourceBuilder {
 
+    private static final java.util.Map<String, java.util.Deque<SourceMapBuilder>> inlineMappings =
+            java.util.Collections.synchronizedMap(new java.util.HashMap<>());
+
     private final StringBuilder out = new StringBuilder();
+    private final SourceMapBuilder sourceMap;
+    private final java.util.List<SourceLocation> pendingLocations = new java.util.ArrayList<>();
+    private SourceLocation lastLocation;
+    private int lastMappedLine = -1;
+    private int lastMappedColumn = -1;
+    private boolean mappingAddedForLine;
     private int indent = 0;
-    public String constdef="";
-    
+    private int line = 0;
+    private int column = 0;
+    public String constdef = "";
+
+    static void registerInlineMapping(String text, SourceMapBuilder map) {
+        if ((text == null) || (map == null)) {
+            return;
+        }
+        inlineMappings.computeIfAbsent(text, k -> new java.util.ArrayDeque<>()).add(map);
+    }
+
+    JsSourceBuilder() {
+        this(null);
+    }
+
+    JsSourceBuilder(SourceMapBuilder sourceMap) {
+        this.sourceMap = sourceMap;
+    }
+
     JsSourceBuilder append(String text) {
+        mergeInlineMappings(text);
+        applyPendingLocation();
         out.append(text);
+        trackPosition(text);
+        return this;
+    }
+
+    JsSourceBuilder append(JsSourceBuilder other) {
+        applyPendingLocation();
+        int lineOffset = line;
+        int columnOffset = column;
+        out.append(other.out);
+        if ((sourceMap != null) && (other.sourceMap != null)) {
+            sourceMap.merge(other.sourceMap, lineOffset, columnOffset);
+        }
+        trackPosition(other.out);
         return this;
     }
 
     JsSourceBuilder newline() {
+        applyPendingLocation();
         out.append('\n');
+        line++;
+        column = 0;
+        mappingAddedForLine = false;
+        carryForwardMapping();
         for (int i = 0; i < indent; i++) {
             out.append(' ');
             out.append(' ');
+            column += 2;
         }
         return this;
     }
@@ -51,6 +99,107 @@ final class JsSourceBuilder {
 
     void insert(int position, String text) {
         out.insert(position, text);
+    }
+
+    void mark(SourceLocation location) {
+        if ((location == null) || (sourceMap == null)) {
+            return;
+        }
+        pendingLocations.add(location);
+        lastLocation = location;
+    }
+
+    SourceMapBuilder getSourceMapBuilder() {
+        return sourceMap;
+    }
+
+    private void trackPosition(CharSequence text) {
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '\n') {
+                line++;
+                column = 0;
+                mappingAddedForLine = false;
+            } else {
+                column++;
+            }
+        }
+    }
+
+    private void applyPendingLocation() {
+        if (pendingLocations.isEmpty()) {
+            return;
+        }
+        for (SourceLocation location : pendingLocations) {
+            recordMapping(location);
+        }
+        pendingLocations.clear();
+    }
+
+    private void recordMapping(SourceLocation location) {
+        if ((sourceMap == null) || (location == null)) {
+            return;
+        }
+        if ((lastMappedLine == line) && (lastMappedColumn == column) && mappingAddedForLine) {
+            return;
+        }
+        sourceMap.addMapping(line, column, location);
+        lastMappedLine = line;
+        lastMappedColumn = column;
+        lastLocation = location;
+        mappingAddedForLine = true;
+    }
+
+    private void carryForwardMapping() {
+        if (!mappingAddedForLine && (lastLocation != null)) {
+            recordMapping(lastLocation);
+        }
+    }
+
+    private void mergeInlineMappings(String text) {
+        if ((sourceMap == null) || inlineMappings.isEmpty() || text.isEmpty()) {
+            return;
+        }
+
+        java.util.Iterator<java.util.Map.Entry<String, java.util.Deque<SourceMapBuilder>>> it =
+                inlineMappings.entrySet().iterator();
+
+        while (it.hasNext()) {
+            java.util.Map.Entry<String, java.util.Deque<SourceMapBuilder>> entry = it.next();
+            String needle = entry.getKey();
+            java.util.Deque<SourceMapBuilder> queue = entry.getValue();
+            int fromIndex = 0;
+
+            while ((queue != null) && !queue.isEmpty()) {
+                int match = text.indexOf(needle, fromIndex);
+                if (match < 0) {
+                    break;
+                }
+
+                SourceMapBuilder inline = queue.pollFirst();
+                if (queue.isEmpty()) {
+                    it.remove();
+                }
+
+                int localLine = 0;
+                int localColumn = 0;
+                for (int i = 0; i < match; i++) {
+                    char ch = text.charAt(i);
+                    if (ch == '\n') {
+                        localLine++;
+                        localColumn = 0;
+                    } else {
+                        localColumn++;
+                    }
+                }
+
+                int lineOffset = line + localLine;
+                int columnOffset = (localLine == 0) ? column + localColumn : localColumn;
+                sourceMap.merge(inline, lineOffset, columnOffset);
+
+                fromIndex = match + needle.length();
+            }
+        }
     }
 
     @Override
